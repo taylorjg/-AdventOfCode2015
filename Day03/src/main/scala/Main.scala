@@ -10,13 +10,13 @@ object Main {
 
   final case class Location(x: Int, y: Int)
 
-  private def move(current: Location, ch: Char): Location =
+  private def move(location: Location, ch: Char): Location =
     ch match {
-      case '^' => Location(current.x, current.y + 1)
-      case 'v' => Location(current.x, current.y - 1)
-      case '<' => Location(current.x - 1, current.y)
-      case '>' => Location(current.x + 1, current.y)
-      case _   => current
+      case '^' => Location(location.x, location.y + 1)
+      case 'v' => Location(location.x, location.y - 1)
+      case '<' => Location(location.x - 1, location.y)
+      case '>' => Location(location.x + 1, location.y)
+      case _   => location
     }
 
   private def part1(input: String): Unit = {
@@ -33,32 +33,26 @@ object Main {
     println(s"part 1 answer: $houses")
   }
 
-  sealed abstract class Turn
-  final case object SantasTurn extends Turn
-  final case object RoboSantasTurn extends Turn
-
   private def part2(input: String): Unit = {
     def loop(visited: Set[Location],
-             step: Int,
-             turn: Turn,
-             santasLocation: Location,
-             roboSantasLocation: Location): Int = {
+             santaLocations: Map[Int, Location],
+             step: Int): Int = {
       if (!input.isDefinedAt(step)) visited.size
       else {
         val ch = input.charAt(step)
-        val newStep = step + 1
-        turn match {
-          case SantasTurn =>
-            val newLocation = move(santasLocation, ch)
-            loop(visited + newLocation, newStep, RoboSantasTurn, newLocation, roboSantasLocation)
-          case RoboSantasTurn =>
-            val newLocation = move(roboSantasLocation, ch)
-            loop(visited + newLocation, newStep, SantasTurn, santasLocation, newLocation)
-        }
+        val index = step % santaLocations.size
+        val oldLocation = santaLocations(index)
+        val newLocation = move(oldLocation, ch)
+        val newSantaLocations = santaLocations.updated(index, newLocation)
+        val newVisited = visited + newLocation
+        loop(newVisited, newSantaLocations, step + 1)
       }
     }
     val start = Location(0, 0)
-    val houses = loop(Set(start), 0, SantasTurn, start, start)
+    val santas = 0 to 1
+    val pairs = santas.map((_, start))
+    val initialSantaLocations = Map(pairs:_*)
+    val houses = loop(Set(start), initialSantaLocations, 0)
     println(s"part 2 answer: $houses")
   }
 }
