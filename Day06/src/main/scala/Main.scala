@@ -6,6 +6,7 @@ object Main {
     val lines = Source.fromResource("input.txt").getLines().toSeq
     val instructions = parseLines(lines)
     part1(instructions)
+    part2(instructions)
   }
 
   sealed abstract class Disposition
@@ -20,33 +21,44 @@ object Main {
   private def parseLines(lines: Seq[String]): Seq[Instruction] =
     lines.map(parseLine)
 
-  private final val LineRegex = """^(turn on|turn off|toggle) (\d+),(\d+) through (\d+),(\d+)$""".r
+  private final val LineRegex =
+    """^(turn on|turn off|toggle) (\d+),(\d+) through (\d+),(\d+)$""".r
 
   private def stringToDisposition(s: String): Disposition =
     s match {
-      case "turn on" => TurnOn
+      case "turn on"  => TurnOn
       case "turn off" => TurnOff
-      case "toggle" => Toggle
-      case _ => throw new Exception(s"Failed to convert '$s' to a Disposition.")
+      case "toggle"   => Toggle
+      case _          => throw new Exception(s"Failed to convert '$s' to a Disposition.")
     }
 
-  type Grid = Map[Coords, Boolean]
+  type Grid = Map[Coords, Int]
+  type ApplyInstructionToLocation = (Grid, Disposition, Coords) => Grid
 
-  private def applyInstructionToLocation(grid: Grid, disposition: Disposition, location: Coords): Grid = {
+  private def applyInstructionToLocation1(grid: Grid,
+                                          disposition: Disposition,
+                                          location: Coords): Grid = {
     val newState =
       disposition match {
-        case TurnOn => true
-        case TurnOff => false
-        case Toggle => !grid.getOrElse(location, false)
+        case TurnOn  => 1
+        case TurnOff => 0
+        case Toggle  => if (grid.getOrElse(location, 0) == 0) 1 else 0
       }
     grid.updated(location, newState)
   }
 
-  private def applyInstructionToLocations(grid: Grid, disposition: Disposition, locations: Seq[Coords]): Grid =
-    locations.foldLeft(grid) {
-      case (currentGrid, location) =>
-        applyInstructionToLocation(currentGrid, disposition, location)
-    }
+  private def applyInstructionToLocation2(grid: Grid,
+                                          disposition: Disposition,
+                                          location: Coords): Grid = {
+    val oldBrightness = grid.getOrElse(location, 0)
+    val newBrightness =
+      disposition match {
+        case TurnOn  => oldBrightness + 1
+        case TurnOff => Math.max(oldBrightness - 1, 0)
+        case Toggle  => oldBrightness + 2
+      }
+    grid.updated(location, newBrightness)
+  }
 
   private def rectLocations(rect: Rect): Seq[Coords] =
     for {
@@ -54,16 +66,30 @@ object Main {
       y <- rect.corner1.y to rect.corner2.y
     } yield Coords(x, y)
 
-  private def applyInstruction(grid: Grid, instruction: Instruction): Grid = {
+  private def applyInstruction(
+      applyInstructionToLocation: ApplyInstructionToLocation)(
+      grid: Grid,
+      instruction: Instruction): Grid = {
     val locations = rectLocations(instruction.rect)
-    applyInstructionToLocations(grid, instruction.disposition, locations)
+    locations.foldLeft(grid) {
+      case (currentGrid, location) =>
+        applyInstructionToLocation(currentGrid,
+                                   instruction.disposition,
+                                   location)
+    }
   }
 
-  private def applyInstructions(grid: Grid, instructions: Seq[Instruction]): Grid =
-    instructions.foldLeft(grid)(applyInstruction)
+  private def applyInstructions(
+      grid: Grid,
+      instructions: Seq[Instruction],
+      applyInstructionToLocation: ApplyInstructionToLocation): Grid =
+    instructions.foldLeft(grid)(applyInstruction(applyInstructionToLocation))
 
   private def countOnLights(grid: Grid): Int =
-    grid.values.count(identity)
+    grid.values.count(_ == 1)
+
+  private def totalBrightness(grid: Grid): Int =
+    grid.values.sum
 
   private def parseLine(line: String): Instruction = {
     line match {
@@ -79,8 +105,15 @@ object Main {
 
   private def part1(instructions: Seq[Instruction]): Unit = {
     val initialGrid: Grid = Map()
-    val finalGrid = applyInstructions(initialGrid, instructions)
+    val finalGrid = applyInstructions(initialGrid, instructions, applyInstructionToLocation1)
     val answer = countOnLights(finalGrid)
     println(s"part 1 answer: $answer")
+  }
+
+  private def part2(instructions: Seq[Instruction]): Unit = {
+    val initialGrid: Grid = Map()
+    val finalGrid = applyInstructions(initialGrid, instructions, applyInstructionToLocation2)
+    val answer = totalBrightness(finalGrid)
+    println(s"part 2 answer: $answer")
   }
 }
