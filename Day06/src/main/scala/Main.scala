@@ -27,8 +27,43 @@ object Main {
       case "turn on" => TurnOn
       case "turn off" => TurnOff
       case "toggle" => Toggle
-      case _ => throw new Exception(s"Failed to convert '$d' to a Disposition.")
+      case _ => throw new Exception(s"Failed to convert '$s' to a Disposition.")
     }
+
+  type Grid = Map[Coords, Boolean]
+
+  private def applyInstructionToLocation(grid: Grid, disposition: Disposition, location: Coords): Grid = {
+    val newState =
+      disposition match {
+        case TurnOn => true
+        case TurnOff => false
+        case Toggle => !grid.getOrElse(location, false)
+      }
+    grid.updated(location, newState)
+  }
+
+  private def applyInstructionToLocations(grid: Grid, disposition: Disposition, locations: Seq[Coords]): Grid =
+    locations.foldLeft(grid) {
+      case (currentGrid, location) =>
+        applyInstructionToLocation(currentGrid, disposition, location)
+    }
+
+  private def rectLocations(rect: Rect): Seq[Coords] =
+    for {
+      x <- rect.corner1.x to rect.corner2.x
+      y <- rect.corner1.y to rect.corner2.y
+    } yield Coords(x, y)
+
+  private def applyInstruction(grid: Grid, instruction: Instruction): Grid = {
+    val locations = rectLocations(instruction.rect)
+    applyInstructionToLocations(grid, instruction.disposition, locations)
+  }
+
+  private def applyInstructions(grid: Grid, instructions: Seq[Instruction]): Grid =
+    instructions.foldLeft(grid)(applyInstruction)
+
+  private def countOnLights(grid: Grid): Int =
+    grid.values.count(identity)
 
   private def parseLine(line: String): Instruction = {
     line match {
@@ -43,7 +78,9 @@ object Main {
   }
 
   private def part1(instructions: Seq[Instruction]): Unit = {
-    val answer = 0
+    val initialGrid: Grid = Map()
+    val finalGrid = applyInstructions(initialGrid, instructions)
+    val answer = countOnLights(finalGrid)
     println(s"part 1 answer: $answer")
   }
 }
