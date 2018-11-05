@@ -16,3 +16,7 @@ val day2 = project.in(file("Day02"))
 val day3 = project.in(file("Day03"))
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= commonDependencies)
+
+val day4 = project.in(file("Day04"))
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= commonDependencies)
