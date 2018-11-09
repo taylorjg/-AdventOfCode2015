@@ -27,10 +27,7 @@ object Main {
   sealed trait Gate {
     val getOutputValue: Future[Signal]
   }
-  final case class Constant(value: Value) extends Gate {
-    override val getOutputValue: Future[Signal] = Future.successful(value.value)
-  }
-  final case class Passthrough(input: Future[GetOutputValue]) extends Gate {
+  final case class Constant(input: Future[GetOutputValue]) extends Gate {
     override val getOutputValue: Future[Signal] = for {
       f <- input
       v <- f
@@ -72,12 +69,11 @@ object Main {
   }
 
   sealed abstract class Instruction
-  final case class ConstantInstruction(value: Value, output: Wire) extends Instruction
-  final case class PassthroughInstruction(input: Wire, output: Wire) extends Instruction
+  final case class ConstantInstruction(input: Source, output: Wire) extends Instruction
   final case class AndInstruction(input1: Source, input2: Wire, output: Wire) extends Instruction
-  final case class OrInstruction(input1: Wire, input2: Wire, output: Wire) extends Instruction
-  final case class NotInstruction(input: Wire, output: Wire) extends Instruction
-  final case class LeftShiftInstruction(by: Int, input: Wire, output: Wire) extends Instruction
+  final case class OrInstruction(input1: Source, input2: Source, output: Wire) extends Instruction
+  final case class NotInstruction(input: Source, output: Wire) extends Instruction
+  final case class LeftShiftInstruction(by: Int, input: Source, output: Wire) extends Instruction
   final case class RightShiftInstruction(by: Int, input: Source, output: Wire) extends Instruction
 
   private def stringToSource(s: String): Source =
@@ -86,8 +82,7 @@ object Main {
   private def parseLines(lines: Seq[String]): Seq[Instruction] =
     lines.map(parseLine)
 
-  private final val ConstantRegex = """^(\d+) -> ([a-z]+)$""".r
-  private final val PassthroughRegex = """^([a-z]+) -> ([a-z]+)$""".r
+  private final val ConstantRegex = """^(\d+|[a-z]+) -> ([a-z]+)$""".r
   private final val AndRegex = """^(\d+|[a-z]+) AND (\d+|[a-z]+) -> ([a-z]+)$""".r
   private final val OrRegex = """^(\d+|[a-z]+) OR (\d+|[a-z]+) -> ([a-z]+)$""".r
   private final val NotRegex = """^NOT (\d+|[a-z]+) -> ([a-z]+)$""".r
@@ -98,10 +93,7 @@ object Main {
     line match {
 
       case ConstantRegex(s, w) =>
-        ConstantInstruction(Value(s.toLong), Wire(w))
-
-      case PassthroughRegex(s, w) =>
-        PassthroughInstruction(Wire(s), Wire(w))
+        ConstantInstruction(stringToSource(s), Wire(w))
 
       case AndRegex(s1, s2, w) =>
         AndInstruction(stringToSource(s1), Wire(s2), Wire(w))
@@ -129,7 +121,23 @@ object Main {
 
     def op(wires: Wires, instruction: Instruction): Wires = {
 
-      def lookupWire(wires: Wires, wire: Wire): (Wires, Promise[GetOutputValue]) = {
+      def lookupSource(wires: Wires, source: Source): (Wires, Future[GetOutputValue]) =
+        source match {
+          case Wire(name) =>
+            wires.get(name) match {
+              case Some(p) =>
+                (wires, p.future)
+              case None =>
+                val p = Promise[GetOutputValue]()
+                val wires2 = wires.updated(name, p)
+                (wires2, p.future)
+            }
+          case Value(value) =>
+            val p = Promise[GetOutputValue].success(Future.successful(value))
+            (wires, p.future)
+        }
+
+      def lookupOutput(wires: Wires, wire: Wire): (Wires, Promise[GetOutputValue]) = {
         wires.get(wire.name) match {
           case Some(p) =>
             (wires, p)
@@ -141,54 +149,38 @@ object Main {
       }
 
       def connect(wires: Wires, output: Wire, gate: Gate): Wires = {
-        val (wires2, promise) = lookupWire(wires, output)
+        val (wires2, promise) = lookupOutput(wires, output)
         promise.success(gate.getOutputValue)
         wires2
       }
 
       instruction match {
 
-        case ConstantInstruction(value, output) =>
-          connect(wires, output, Constant(value))
-
-        case PassthroughInstruction(input, output) =>
-          val (wires2, b) = lookupWire(wires, input)
-          connect(wires2, output, Passthrough(b.future))
+        case ConstantInstruction(input, output) =>
+          val (wires2, inputF) = lookupSource(wires, input)
+          connect(wires2, output, Constant(inputF))
 
         case AndInstruction(input1, input2, output) =>
-          input1 match {
-            case wire: Wire =>
-              val (wires2, b) = lookupWire(wires, wire)
-              val (wires3, d) = lookupWire(wires2, input2)
-              connect(wires3, output, And(b.future, d.future))
-            case Value(value) =>
-              val bF = Future.successful(Future.successful(value))
-              val (wires2, d) = lookupWire(wires, input2)
-              connect(wires2, output, And(bF, d.future))
-          }
+          val (wires2, input1F) = lookupSource(wires, input1)
+          val (wires3, input2F) = lookupSource(wires2, input2)
+          connect(wires3, output, And(input1F, input2F))
 
         case OrInstruction(input1, input2, output) =>
-          val (wires2, b) = lookupWire(wires, input1)
-          val (wires3, d) = lookupWire(wires2, input2)
-          connect(wires3, output, Or(b.future, d.future))
+          val (wires2, input1F) = lookupSource(wires, input1)
+          val (wires3, input2F) = lookupSource(wires2, input2)
+          connect(wires3, output, Or(input1F, input2F))
 
         case NotInstruction(input, output) =>
-          val (wires2, b) = lookupWire(wires, input)
-          connect(wires2, output, Not(b.future))
+          val (wires2, inputF) = lookupSource(wires, input)
+          connect(wires2, output, Not(inputF))
 
         case LeftShiftInstruction(by, input, output) =>
-          val (wires2, b) = lookupWire(wires, input)
-          connect(wires2, output, LeftShift(by, b.future))
+          val (wires2, inputF) = lookupSource(wires, input)
+          connect(wires2, output, LeftShift(by, inputF))
 
         case RightShiftInstruction(by, input, output) =>
-          input match {
-            case wire: Wire =>
-              val (wires2, b) = lookupWire(wires, wire)
-              connect(wires2, output, RightShift(by, b.future))
-          case Value(value) =>
-            val bF = Future.successful(Future.successful(value))
-            connect(wires, output, RightShift(by, bF))
-          }
+          val (wires2, inputF) = lookupSource(wires, input)
+          connect(wires2, output, RightShift(by, inputF))
       }
     }
 
@@ -196,14 +188,5 @@ object Main {
     val finalWires = instructions.foldLeft(initialWires)(op)
 
     finalWires.get("a").map(_.future).map(_.map(_.map(a => println(s"a: $a"))))
-
-//    finalWires.foreach { kvp =>
-//      val name = kvp._1
-//      val promise = kvp._2
-//      val signalFF = promise.future
-//      signalFF.foreach(signalF =>
-//        signalF.foreach(signal =>
-//          println(s"$name: $signal")))
-//    }
   }
 }
