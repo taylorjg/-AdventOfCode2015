@@ -21,7 +21,6 @@ object Main {
       PassthroughInstruction(Wire("f"), Wire("p"))
     )
 
-    println(instructions)
     part1(instructions)
   }
 
@@ -187,18 +186,14 @@ object Main {
 
     val initialWires: Wires = Map()
     val finalWires = instructions.foldLeft(initialWires)(op)
-    val kvps = finalWires.toList
-    kvps.foreach {
-      kvp =>
-        val name = kvp._1
-        val future = kvp._2.future
-        future.foreach {
-          fn =>
-            fn.foreach {
-              signal =>
-                println(s"$name: $signal")
-            }
-        }
+
+    finalWires.foreach { kvp =>
+      val name = kvp._1
+      val promise = kvp._2
+      val signalFF = promise.future
+      signalFF.foreach(signalF =>
+        signalF.foreach(signal =>
+          println(s"$name: $signal")))
     }
   }
 }
