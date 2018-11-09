@@ -187,12 +187,18 @@ object Main {
 
     val initialWires: Wires = Map()
     val finalWires = instructions.foldLeft(initialWires)(op)
-    val outerFutures = finalWires.values.toList.map(p => p.future)
-    val functionsF = Future.sequence(outerFutures)
-    functionsF.map {
-      innerFutures =>
-        val signalsF = Future.sequence(innerFutures)
-        signalsF.map(signals => println(signals))
+    val kvps = finalWires.toList
+    kvps.foreach {
+      kvp =>
+        val name = kvp._1
+        val future = kvp._2.future
+        future.foreach {
+          fn =>
+            fn.foreach {
+              signal =>
+                println(s"$name: $signal")
+            }
+        }
     }
   }
 }
