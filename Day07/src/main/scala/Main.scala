@@ -27,46 +27,47 @@ object Main {
   sealed trait Gate {
     val getOutputValue: Future[Signal]
   }
-  final case class Constant(input: Future[GetOutputValue]) extends Gate {
+
+  abstract class OneInputGate(input: Future[GetOutputValue],
+                              eval: Signal => Signal)
+      extends Gate() {
     override val getOutputValue: Future[Signal] = for {
       f <- input
       v <- f
-    } yield v
+    } yield eval(v)
   }
-  final case class And(input1: Future[GetOutputValue], input2: Future[GetOutputValue]) extends Gate {
+
+  abstract class TwoInputGate(input1: Future[GetOutputValue],
+                              input2: Future[GetOutputValue],
+                              eval: (Signal, Signal) => Signal)
+      extends Gate() {
     override val getOutputValue: Future[Signal] = for {
       f1 <- input1
       f2 <- input2
       v1 <- f1
       v2 <- f2
-    } yield v1 & v2
+    } yield eval(v1, v2)
   }
-  final case class Or(input1: Future[GetOutputValue], input2: Future[GetOutputValue]) extends Gate {
-    override val getOutputValue: Future[Signal] = for {
-      f1 <- input1
-      f2 <- input2
-      v1 <- f1
-      v2 <- f2
-    } yield v1 | v2
-  }
-  final case class Not(input: Future[GetOutputValue]) extends Gate {
-    override val getOutputValue: Future[Signal] = for {
-      f <- input
-      v <- f
-    } yield ~v & 0xFFFF
-  }
-  final case class LeftShift(by: Int, input: Future[GetOutputValue]) extends Gate {
-    override val getOutputValue: Future[Signal] = for {
-      f <- input
-      v <- f
-    } yield v << by
-  }
-  final case class RightShift(by: Int, input: Future[GetOutputValue]) extends Gate {
-    override val getOutputValue: Future[Signal] = for {
-      f <- input
-      v <- f
-    } yield v >> by
-  }
+
+  final case class Constant(input: Future[GetOutputValue])
+    extends OneInputGate(input, identity)
+
+  final case class And(input1: Future[GetOutputValue],
+                       input2: Future[GetOutputValue])
+      extends TwoInputGate(input1, input2, (v1, v2) => v1 & v2)
+
+  final case class Or(input1: Future[GetOutputValue],
+                      input2: Future[GetOutputValue])
+      extends TwoInputGate(input1, input2, (v1, v2) => v1 | v2)
+
+  final case class Not(input: Future[GetOutputValue])
+    extends OneInputGate(input, v => ~v & 0xFFFF)
+
+  final case class LeftShift(by: Int, input: Future[GetOutputValue])
+    extends OneInputGate(input, v => v << by)
+
+  final case class RightShift(by: Int, input: Future[GetOutputValue])
+    extends OneInputGate(input, v => v >> by)
 
   sealed abstract class Instruction
   final case class ConstantInstruction(input: Source, output: Wire) extends Instruction
@@ -76,18 +77,18 @@ object Main {
   final case class LeftShiftInstruction(by: Int, input: Source, output: Wire) extends Instruction
   final case class RightShiftInstruction(by: Int, input: Source, output: Wire) extends Instruction
 
-  private def stringToSource(s: String): Source =
-    if (s.forall(Character.isDigit)) Value(s.toLong) else Wire(s)
-
   private def parseLines(lines: Seq[String]): Seq[Instruction] =
     lines.map(parseLine)
 
-  private final val ConstantRegex = """^(\d+|[a-z]+) -> ([a-z]+)$""".r
-  private final val AndRegex = """^(\d+|[a-z]+) AND (\d+|[a-z]+) -> ([a-z]+)$""".r
-  private final val OrRegex = """^(\d+|[a-z]+) OR (\d+|[a-z]+) -> ([a-z]+)$""".r
-  private final val NotRegex = """^NOT (\d+|[a-z]+) -> ([a-z]+)$""".r
-  private final val LeftShiftRegex = """^(\d+|[a-z]+) LSHIFT (\d+) -> ([a-z]+)$""".r
-  private final val RightShiftRegex = """^(\d+|[a-z]+) RSHIFT (\d+) -> ([a-z]+)$""".r
+  private final val SourceRegex = """(\d+|[a-z]+)"""
+  private final val WireRegex = """([a-z]+)"""
+  private final val ByRegex = """(\d+)"""
+  private final val ConstantRegex = s"$SourceRegex -> $WireRegex".r
+  private final val AndRegex = s"$SourceRegex AND $SourceRegex -> $WireRegex".r
+  private final val OrRegex = s"$SourceRegex OR $SourceRegex -> $WireRegex".r
+  private final val NotRegex = s"NOT $SourceRegex -> $WireRegex".r
+  private final val LeftShiftRegex = s"$SourceRegex LSHIFT $ByRegex -> $WireRegex"r
+  private final val RightShiftRegex = s"$SourceRegex RSHIFT $ByRegex -> $WireRegex".r
 
   private def parseLine(line: String): Instruction = {
     line match {
@@ -114,6 +115,9 @@ object Main {
     }
   }
 
+  private def stringToSource(s: String): Source =
+    if (s.forall(Character.isDigit)) Value(s.toLong) else Wire(s)
+
   type GetOutputValue = Future[Signal]
   type Wires = Map[String, Promise[GetOutputValue]]
 
@@ -121,7 +125,8 @@ object Main {
 
     def op(wires: Wires, instruction: Instruction): Wires = {
 
-      def lookupSource(wires: Wires, source: Source): (Wires, Future[GetOutputValue]) =
+      def lookupSource(wires: Wires,
+                       source: Source): (Wires, Future[GetOutputValue]) =
         source match {
           case Wire(name) =>
             wires.get(name) match {
@@ -137,7 +142,8 @@ object Main {
             (wires, p.future)
         }
 
-      def lookupOutput(wires: Wires, wire: Wire): (Wires, Promise[GetOutputValue]) = {
+      def lookupOutput(wires: Wires,
+                       wire: Wire): (Wires, Promise[GetOutputValue]) = {
         wires.get(wire.name) match {
           case Some(p) =>
             (wires, p)
