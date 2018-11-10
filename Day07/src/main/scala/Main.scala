@@ -20,12 +20,14 @@ object Main {
 
   type Signal = Long
 
-  sealed abstract class Source
-  final case class Wire(name: String) extends Source
-  final case class Value(value: Signal) extends Source
-
   sealed trait Gate {
     val getOutputValue: Future[Signal]
+  }
+
+  abstract class ZeroInputGate(value: Value)
+    extends Gate() {
+    override val getOutputValue: Future[Signal] =
+      Future.successful(value.value)
   }
 
   abstract class OneInputGate(input: Future[GetOutputValue],
@@ -49,7 +51,10 @@ object Main {
     } yield eval(v1, v2)
   }
 
-  final case class Constant(input: Future[GetOutputValue])
+  final case class Constant(value: Value)
+    extends ZeroInputGate(value)
+
+  final case class Passthrough(input: Future[GetOutputValue])
     extends OneInputGate(input, identity)
 
   final case class And(input1: Future[GetOutputValue],
@@ -69,8 +74,13 @@ object Main {
   final case class RightShift(by: Int, input: Future[GetOutputValue])
     extends OneInputGate(input, v => v >> by)
 
+  sealed abstract class Source
+  final case class Value(value: Signal) extends Source
+  final case class Wire(name: String) extends Source
+
   sealed abstract class Instruction
-  final case class ConstantInstruction(input: Source, output: Wire) extends Instruction
+  final case class ConstantInstruction(input: Value, output: Wire) extends Instruction
+  final case class PassthroughInstruction(input: Wire, output: Wire) extends Instruction
   final case class AndInstruction(input1: Source, input2: Wire, output: Wire) extends Instruction
   final case class OrInstruction(input1: Source, input2: Source, output: Wire) extends Instruction
   final case class NotInstruction(input: Source, output: Wire) extends Instruction
@@ -80,21 +90,26 @@ object Main {
   private def parseLines(lines: Seq[String]): Seq[Instruction] =
     lines.map(parseLine)
 
+  private final val ValueRegex = """(\d+)"""
   private final val SourceRegex = """(\d+|[a-z]+)"""
   private final val WireRegex = """([a-z]+)"""
   private final val ByRegex = """(\d+)"""
-  private final val ConstantRegex = s"$SourceRegex -> $WireRegex".r
+  private final val ConstantRegex = s"$ValueRegex -> $WireRegex".r
+  private final val PassthroughRegex = s"$WireRegex -> $WireRegex".r
   private final val AndRegex = s"$SourceRegex AND $SourceRegex -> $WireRegex".r
   private final val OrRegex = s"$SourceRegex OR $SourceRegex -> $WireRegex".r
   private final val NotRegex = s"NOT $SourceRegex -> $WireRegex".r
   private final val LeftShiftRegex = s"$SourceRegex LSHIFT $ByRegex -> $WireRegex"r
   private final val RightShiftRegex = s"$SourceRegex RSHIFT $ByRegex -> $WireRegex".r
 
-  private def parseLine(line: String): Instruction = {
+  private def parseLine(line: String): Instruction =
     line match {
 
       case ConstantRegex(s, w) =>
-        ConstantInstruction(stringToSource(s), Wire(w))
+        ConstantInstruction(Value(s.toLong), Wire(w))
+
+      case PassthroughRegex(s, w) =>
+        PassthroughInstruction(Wire(s), Wire(w))
 
       case AndRegex(s1, s2, w) =>
         AndInstruction(stringToSource(s1), Wire(s2), Wire(w))
@@ -113,7 +128,6 @@ object Main {
 
       case _ => throw new Exception(s"Failed to parse line, '$line'.")
     }
-  }
 
   private def stringToSource(s: String): Source =
     if (s.forall(Character.isDigit)) Value(s.toLong) else Wire(s)
@@ -162,9 +176,12 @@ object Main {
 
       instruction match {
 
-        case ConstantInstruction(input, output) =>
-          val (wires2, inputF) = lookupSource(wires, input)
-          connect(wires2, output, Constant(inputF))
+        case ConstantInstruction(value, output) =>
+          connect(wires, output, Constant(value))
+
+        case PassthroughInstruction(wire, output) =>
+          val (wires2, inputF) = lookupSource(wires, wire)
+          connect(wires2, output, Passthrough(inputF))
 
         case AndInstruction(input1, input2, output) =>
           val (wires2, input1F) = lookupSource(wires, input1)
