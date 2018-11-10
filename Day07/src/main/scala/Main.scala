@@ -90,17 +90,16 @@ object Main {
   private def parseLines(lines: Seq[String]): Seq[Instruction] =
     lines.map(parseLine)
 
-  private final val ValueRegex = """(\d+)"""
+  private final val NumberRegex = """(\d+)"""
   private final val SourceRegex = """(\d+|[a-z]+)"""
   private final val WireRegex = """([a-z]+)"""
-  private final val ByRegex = """(\d+)"""
-  private final val ConstantRegex = s"$ValueRegex -> $WireRegex".r
+  private final val ConstantRegex = s"$NumberRegex -> $WireRegex".r
   private final val PassthroughRegex = s"$WireRegex -> $WireRegex".r
   private final val AndRegex = s"$SourceRegex AND $SourceRegex -> $WireRegex".r
   private final val OrRegex = s"$SourceRegex OR $SourceRegex -> $WireRegex".r
   private final val NotRegex = s"NOT $SourceRegex -> $WireRegex".r
-  private final val LeftShiftRegex = s"$SourceRegex LSHIFT $ByRegex -> $WireRegex"r
-  private final val RightShiftRegex = s"$SourceRegex RSHIFT $ByRegex -> $WireRegex".r
+  private final val LeftShiftRegex = s"$SourceRegex LSHIFT $NumberRegex -> $WireRegex"r
+  private final val RightShiftRegex = s"$SourceRegex RSHIFT $NumberRegex -> $WireRegex".r
 
   private def parseLine(line: String): Instruction =
     line match {
