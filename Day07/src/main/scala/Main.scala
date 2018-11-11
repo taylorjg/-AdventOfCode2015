@@ -1,3 +1,5 @@
+import scalaz._
+import Scalaz._
 import scala.io.Source
 
 object Main {
@@ -90,25 +92,24 @@ object Main {
     }
 
   private def zeroInputGate(wires: Wires, value: Value, output: Wire): Wires =
-    setOutput(wires, output, Some(value.signal))
+    setOutput(wires, output, value.signal.some)
 
   private def oneInputGate(wires: Wires,
                            input: Source,
                            output: Wire,
-                           f: Signal => Signal): Wires =
-    setOutput(wires, output, tryGetValue(wires, input).map(f))
+                           eval: Signal => Signal): Wires = {
+    val value = tryGetValue(wires, input).map(eval)
+    setOutput(wires, output, value)
+  }
 
   private def twoInputGate(wires: Wires,
                            input1: Source,
                            input2: Source,
                            output: Wire,
-                           f: (Signal, Signal) => Signal): Wires =
-    setOutput(wires, output, {
-      (tryGetValue(wires, input1), tryGetValue(wires, input2)) match {
-        case (Some(signal1), Some(signal2)) => Some(f(signal1, signal2))
-        case _                              => None
-      }
-    })
+                           eval: (Signal, Signal) => Signal): Wires = {
+    val value = (tryGetValue(wires, input1) |@| tryGetValue(wires, input2))(eval)
+    setOutput(wires, output, value)
+  }
 
   private def processInstruction(wires: Wires,
                                  instruction: Instruction): Wires =
