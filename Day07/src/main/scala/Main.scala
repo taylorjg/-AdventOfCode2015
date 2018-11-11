@@ -87,7 +87,7 @@ object Main {
 
   private def tryGetValue(wires: Wires, input: Source): Option[Signal] =
     input match {
-      case Value(signal) => Some(signal)
+      case Value(signal) => signal.some
       case wire: Wire    => wires.get(wire)
     }
 
