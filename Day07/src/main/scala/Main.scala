@@ -108,7 +108,7 @@ object Main {
     setOutput(
       wires,
       output,
-      (tryGetValue(wires, input1) |@| tryGetValue(wires, input2)) (eval))
+      (tryGetValue(wires, input1) |@| tryGetValue(wires, input2))(eval))
 
   private def processInstruction(wires: Wires,
                                  instruction: Instruction): Wires =
@@ -136,9 +136,7 @@ object Main {
   private def run(instructions: Seq[Instruction],
                   overrides: (Wire, Signal)*): Signal = {
     def loop(wires: Wires): Signal =
-      wires.getOrElse(Wire("a"), {
-        loop(processInstructions(wires, instructions))
-      })
+      wires.getOrElse(Wire("a"), loop(processInstructions(wires, instructions)))
     val initialWires: Wires = Map(overrides: _*)
     loop(initialWires)
   }
