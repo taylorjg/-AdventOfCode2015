@@ -17,7 +17,7 @@ object Main {
   type Signal = Long
 
   sealed abstract class Source
-  final case class Value(value: Signal) extends Source
+  final case class Value(signal: Signal) extends Source
   final case class Wire(name: String) extends Source
 
   type Wires = Map[Wire, Signal]
@@ -32,8 +32,8 @@ object Main {
   final case class Or(input1: Source, input2: Source, output: Wire) extends Instruction
 
   private final val NumberRegex = """(\d+)"""
-  private final val SourceRegex = """(\d+|[a-z]+)"""
   private final val WireRegex = """([a-z]+)"""
+  private final val SourceRegex = """(\d+|[a-z]+)"""
   private final val ConstantRegex = s"$NumberRegex -> $WireRegex".r
   private final val PassthroughRegex = s"$WireRegex -> $WireRegex".r
   private final val NotRegex = s"NOT $SourceRegex -> $WireRegex".r
@@ -90,7 +90,7 @@ object Main {
     }
 
   private def zeroInputGate(wires: Wires, value: Value, output: Wire): Wires =
-    setOutput(wires, output, Some(value.value))
+    setOutput(wires, output, Some(value.signal))
 
   private def oneInputGate(wires: Wires,
                            input: Source,
