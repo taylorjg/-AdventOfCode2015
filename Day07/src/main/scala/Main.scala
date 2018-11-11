@@ -57,6 +57,8 @@ object Main {
   private def toSource(s: String): Source =
     if (s.forall(Character.isDigit)) Value(s.toLong) else Wire(s)
 
+  // --------------------------------------------------------------------------------
+
   private def setOutput(wires: Wires,
                         output: Wire,
                         value: => Option[Signal]): Wires =
@@ -90,9 +92,58 @@ object Main {
   private def evalGates(initialWires: Wires, gates: Seq[Gate]): Wires =
     gates.foldLeft(initialWires)((wires, gate) => gate(wires))
 
-  private def runCircuit(gates: Seq[Gate], overrides: (Wire, Signal)*): Signal = {
-    def loop(wires: Wires): Signal = wires.getOrElse(Wire("a"), loop(evalGates(wires, gates)))
+  private def runCircuit(gates: Seq[Gate],
+                         overrides: (Wire, Signal)*): Signal = {
+    def loop(wires: Wires): Signal =
+      wires.getOrElse(Wire("a"), loop(evalGates(wires, gates)))
     val initialWires: Wires = Map(overrides: _*)
     loop(initialWires)
+  }
+
+  // --------------------------------------------------------------------------------
+
+  private def setOutput2(output: Wire, value: => Option[Signal]): State[Wires, Unit] =
+    State[Wires, Unit] { wires =>
+      (wires.isDefinedAt(output), value) match {
+        case (false, Some(signal)) => (wires.updated(output, signal), ())
+        case _                     => (wires, ())
+      }
+    }
+
+  private def tryGetValue2(input: Source): State[Wires, Option[Signal]] =
+    State[Wires, Option[Signal]] { wires =>
+      input match {
+        case Value(signal) => (wires, Some(signal))
+        case wire: Wire    => (wires, wires.get(wire))
+      }
+    }
+
+  private def zeroInputGate2(value: Value, output: Wire): State[Wires, Unit] =
+    for {
+      _ <- setOutput2(output, Some(value.signal))
+    } yield ()
+
+  private def oneInputGate2(input: Source, output: Wire, eval: Signal => Signal): State[Wires, Unit] =
+    for {
+      maybeValue <- tryGetValue2(input)
+      value = maybeValue.map(eval)
+      _ <- setOutput2(output, value)
+    } yield ()
+
+  private def twoInputGate2(wires: Wires,
+                            input1: Source,
+                            input2: Source,
+                            output: Wire,
+                            eval: (Signal, Signal) => Signal): State[Wires, Unit] =
+    for {
+      maybeValue1 <- tryGetValue2(input1)
+      maybeValue2 <- tryGetValue2(input2)
+      value = (maybeValue1 |@| maybeValue2)(eval)
+      _ <- setOutput2(output, value)
+    } yield ()
+
+  private def run2(gates: Seq[Gate], overrides: (Wire, Signal)*): Signal = {
+    val initialWires: Wires = Map(overrides: _*)
+    ???
   }
 }
