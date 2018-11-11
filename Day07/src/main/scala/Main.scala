@@ -81,7 +81,7 @@ object Main {
                         output: Wire,
                         value: => Option[Signal]): Wires =
     (wires.isDefinedAt(output), value) match {
-      case (false, Some(signal)) => wires.updated(output, signal)
+      case (false, Some(signal)) => wires + (output -> signal)
       case _                     => wires
     }
 
