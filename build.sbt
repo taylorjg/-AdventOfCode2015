@@ -3,6 +3,7 @@ val commonSettings = Seq(
 )
 
 val commonDependencies = Seq(
+  "org.scalaz" %% "scalaz-core" % "7.2.26"
 )
 
 val day1 = project.in(file("Day01"))
