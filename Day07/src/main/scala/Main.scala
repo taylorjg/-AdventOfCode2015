@@ -42,15 +42,15 @@ object Main {
       case PassthroughRegex(s, w) =>
         oneInputGate(Wire(s), Wire(w), identity)
       case NotRegex(s, w) =>
-        oneInputGate(toSource(s), Wire(w), v => ~v & 0xFFFF)
+        oneInputGate(toSource(s), Wire(w), ~_ & 0xFFFF)
       case LeftShiftRegex(s, by, w) =>
-        oneInputGate(toSource(s), Wire(w), v => v << by.toInt)
+        oneInputGate(toSource(s), Wire(w), _ << by.toInt)
       case RightShiftRegex(s, by, w) =>
-        oneInputGate(toSource(s), Wire(w), v => v >> by.toInt)
+        oneInputGate(toSource(s), Wire(w), _ >> by.toInt)
       case AndRegex(s1, s2, w) =>
-        twoInputGate(toSource(s1), toSource(s2), Wire(w), (v1, v2) => v1 & v2)
+        twoInputGate(toSource(s1), toSource(s2), Wire(w), _ & _)
       case OrRegex(s1, s2, w) =>
-        twoInputGate(toSource(s1), toSource(s2), Wire(w), (v1, v2) => v1 | v2)
+        twoInputGate(toSource(s1), toSource(s2), Wire(w), _ | _)
       case _ => throw new Exception(s"Failed to parse line, '$line'.")
     }
 
