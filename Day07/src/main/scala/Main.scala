@@ -87,8 +87,8 @@ object Main {
 
   private def tryGetValue(wires: Wires, input: Source): Option[Signal] =
     input match {
-      case Value(signal) => signal.some
-      case wire: Wire    => wires.get(wire)
+      case value: Value => value.signal.some
+      case wire: Wire   => wires.get(wire)
     }
 
   private def zeroInputGate(wires: Wires, value: Value, output: Wire): Wires =
@@ -97,19 +97,18 @@ object Main {
   private def oneInputGate(wires: Wires,
                            input: Source,
                            output: Wire,
-                           eval: Signal => Signal): Wires = {
-    val value = tryGetValue(wires, input).map(eval)
-    setOutput(wires, output, value)
-  }
+                           eval: Signal => Signal): Wires =
+    setOutput(wires, output, tryGetValue(wires, input).map(eval))
 
   private def twoInputGate(wires: Wires,
                            input1: Source,
                            input2: Source,
                            output: Wire,
-                           eval: (Signal, Signal) => Signal): Wires = {
-    val value = (tryGetValue(wires, input1) |@| tryGetValue(wires, input2))(eval)
-    setOutput(wires, output, value)
-  }
+                           eval: (Signal, Signal) => Signal): Wires =
+    setOutput(
+      wires,
+      output,
+      (tryGetValue(wires, input1) |@| tryGetValue(wires, input2)) (eval))
 
   private def processInstruction(wires: Wires,
                                  instruction: Instruction): Wires =
