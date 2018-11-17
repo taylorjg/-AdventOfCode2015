@@ -48,8 +48,10 @@ object Main {
     loop(unquoted, "")
   }
 
-  private def encode(s: String): String = {
-    s
+  private def encodedLength(s: String): Int = {
+    val quoteCount = s.count(_ == '"')
+    val backslashCount = s.count(_ == '\\')
+    s.length + quoteCount + backslashCount + 2
   }
 
   private def part1(literals: List[String]): Int = {
@@ -57,7 +59,6 @@ object Main {
       val len1 = s.length
       val s2 = decode(s)
       val len2 = s2.length
-      println(s"s: $s, s2: $s2; len1: $len1; len2: $len2")
       (len1, len2)
     }
     val lenPairs = literals.map(f)
@@ -70,9 +71,7 @@ object Main {
   private def part2(literals: List[String]): Int = {
     def f(s: String): (Int, Int) = {
       val len1 = s.length
-      val s2 = encode(s)
-      val len2 = s2.length
-      println(s"s: $s, s2: $s2; len1: $len1; len2: $len2")
+      val len2 = encodedLength(s)
       (len1, len2)
     }
     val lenPairs = literals.map(f)
