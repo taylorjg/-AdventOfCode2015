@@ -11,25 +11,28 @@ object Main {
   }
 
   private def part1(input: String): Int =
-    Stream.iterate(input, 41)(generateNextString).last.length
+    Iterable.iterate(input, 41)(generateNextString).last.length
 
   private def part2(input: String): Int =
-    Stream.iterate(input, 51)(generateNextString).last.length
+    Iterable.iterate(input, 51)(generateNextString).last.length
 
-  private def generateNextString(s: String): String = {
+  private def generateNextString(input: String): String = {
+    val sb = StringBuilder.newBuilder
     @tailrec
-    def loop(remaining: String, acc: List[String]): List[String] = {
-      if (remaining.isEmpty) acc
-      else {
-        val ch = remaining.head
-        val (run, remaining2) = remaining.span(_ == ch)
-        val say = s"${run.length}$ch"
-        loop(remaining2, say :: acc)
+    def loop(currentDigitIndex: Int = 0): Unit = {
+      if (input.isDefinedAt(currentDigitIndex)) {
+        val currentDigit = input(currentDigitIndex)
+        @tailrec
+        def findEndOfRun(nextDigitIndex: Int): Int =
+          if (input.isDefinedAt(nextDigitIndex) && input(nextDigitIndex) == currentDigit)
+            findEndOfRun(nextDigitIndex + 1)
+          else nextDigitIndex
+        val runLength = findEndOfRun(currentDigitIndex + 1) - currentDigitIndex
+        sb ++= s"$runLength$currentDigit"
+        loop(currentDigitIndex + runLength)
       }
     }
-    val says = loop(s, List()).reverse
-    val sb = new StringBuilder
-    says.foldLeft(sb)((sb, s) => sb ++= s)
+    loop()
     sb.toString
   }
 }
