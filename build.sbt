@@ -3,7 +3,9 @@ val commonCompilerOptions = Seq(
 )
 
 val commonDependencies = Seq(
-  "org.scalaz" %% "scalaz-core" % "7.2.26"
+  "org.scalaz" %% "scalaz-core" % "7.2.26",
+  "org.json4s" %% "json4s-native" % "3.6.2",
+  "org.json4s" %% "json4s-jackson" % "3.6.2"
 )
 
 val commonSettings = Seq(
@@ -23,3 +25,4 @@ val day08 = project.in(file("Day08")).settings(commonSettings: _*)
 val day09 = project.in(file("Day09")).settings(commonSettings: _*)
 val day10 = project.in(file("Day10")).settings(commonSettings: _*)
 val day11 = project.in(file("Day11")).settings(commonSettings: _*)
+val day12 = project.in(file("Day12")).settings(commonSettings: _*)
