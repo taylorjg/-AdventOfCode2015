@@ -4,11 +4,13 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     val input = "cqjxjnds"
-    val part1Answer = part1(input)
+    val part1Answer = nextPassword(input)
     println(s"part 1 answer: $part1Answer")
+    val part2Answer = nextPassword(part1Answer)
+    println(s"part 2 answer: $part2Answer")
   }
 
-  private def part1(pw: String): String = {
+  private def nextPassword(pw: String): String = {
     @tailrec
     def loop(s: String): String = {
       val s2 = increment(s)
