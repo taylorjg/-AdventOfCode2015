@@ -1,3 +1,4 @@
+import scala.annotation.tailrec
 import scala.io.Source
 
 object Main {
@@ -48,27 +49,6 @@ object Main {
   private def distinctPeople(pairings: Seq[Pairing]): Int =
     pairings.flatMap(p => List(p.person1, p.person2)).distinct.length
 
-  // part 1 answer: 733
-  // Pairing(David,George,2,92)
-  // Pairing(David,Eric,-18,51)
-  // Pairing(Alice,Bob,2,40)
-  // Pairing(Alice,Mallory,39,92)
-  // Pairing(Carol,Eric,95,100)
-  // Pairing(George,Mallory,97,-89)
-  // Pairing(Bob,Frank,41,91)
-  // Pairing(Carol,Frank,90,8)
-
-  // part 2 answer: 755
-  // Pairing(David,George,2,92)
-  // Pairing(Alice,Bob,2,40)
-  // Pairing(Carol,Mallory,94,-51)
-  // Pairing(Eric,Frank,21,97)
-  // Pairing(Alice,Mallory,39,92)
-  // Pairing(Carol,Eric,95,100)
-  // Pairing(Bob,Frank,41,91)
-  // Pairing(** ME **,David,0,0)
-  // Pairing(** ME **,George,0,0)
-
   type Person = String
   type Coords = (Person, Person)
   type Matrix = List[Coords]
@@ -88,34 +68,62 @@ object Main {
 
   private def optimalArrangement(pairings: Seq[Pairing]): Int = {
     val numPeople = distinctPeople(pairings)
-    val winner = pairings
+    pairings
       .combinations(numPeople)
       .filter(checkAdjacencyMatrix)
-      .maxBy(totalHappinessChange)
-    println(s"winner: $winner")
-    totalHappinessChange(winner)
+      .map(totalHappinessChange)
+      .max
   }
 
   private def optimalArrangement2(pairings: Seq[Pairing]): Int = {
     val numPeople = distinctPeople(pairings)
-    val winner = pairings
+    pairings
       .combinations(numPeople)
-      .filter(includesMe)
       .filter(checkAdjacencyMatrix)
-      .maxBy(totalHappinessChange)
-    println(s"winner: $winner")
-    totalHappinessChange(winner)
+      .filter(includesMe)
+      .filter(everybodyCanReachMe)
+      .map(totalHappinessChange)
+      .max
   }
+
+  private final val Me = "** ME **"
 
   private def addMe(pairings: Seq[Pairing]): Seq[Pairing] = {
     val distinctPersons =
       pairings.flatMap(p => List(p.person1, p.person2)).distinct
-    val additions = distinctPersons.map(p => Pairing("** ME **", p, 0, 0))
+    val additions = distinctPersons.map(p => Pairing(Me, p, 0, 0))
     pairings ++ additions
   }
 
-  private def includesMe(pairings: Seq[Pairing]): Boolean = {
-    val allPersons = pairings.flatMap(p => List(p.person1, p.person2))
-    allPersons.contains("** ME **")
+  private def includesMe(pairings: Seq[Pairing]): Boolean =
+    pairings.flatMap(p => List(p.person1, p.person2)).contains(Me)
+
+  private def everybodyCanReachMe(pairings: Seq[Pairing]): Boolean = {
+    val people = pairings.flatMap(p => List(p.person1, p.person2)).distinct
+    people.filterNot(_ == Me).forall(canReachMe(pairings))
+  }
+
+  private def canReachMe(pairings: Seq[Pairing])(person: String): Boolean = {
+
+    def findPerson(pairings: Seq[Pairing], person: String): Option[Pairing] =
+      pairings.find(pairing =>
+        pairing.person1 == person || pairing.person2 == person)
+
+    @tailrec
+    def loop(pairings: Seq[Pairing], person: String): Boolean = {
+      findPerson(pairings, person) match {
+        case Some(pairing) =>
+          val otherPerson =
+            if (pairing.person1 == person) pairing.person2 else pairing.person1
+          if (otherPerson == Me) true
+          else {
+            val pairings2 = pairings.filterNot(_ == pairing)
+            loop(pairings2, otherPerson)
+          }
+        case None => false
+      }
+    }
+
+    loop(pairings, person)
   }
 }
