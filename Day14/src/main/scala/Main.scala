@@ -3,19 +3,18 @@ import scala.io.Source
 object Main {
 
   def main(args: Array[String]): Unit = {
-    val lines = Source.fromResource("input.txt").getLines().toList
-    // val lines = Source.fromResource("test.txt").getLines().toList
-    val deerData = parseLines(lines)
-    // val numSeconds = 1000
-    val numSeconds = 2503
-    val part1Answer = part1(deerData, numSeconds)
+    val fileName = "input.txt" // "test.txt"
+    val raceLength = 2503 // 1000
+    val lines = Source.fromResource(fileName).getLines().toList
+    val dds = parseLines(lines)
+    val part1Answer = reindeerRace(dds, raceLength, _.td)
     println(s"part 1 answer: $part1Answer")
-    val part2Answer = part2(deerData, numSeconds)
+    val part2Answer = reindeerRace(dds, raceLength, _.pts)
     println(s"part 2 answer: $part2Answer")
   }
 
   final case class DeerData(name: String,
-                            speed: Int,
+                            kms: Int,
                             flyingTime: Int,
                             restingTime: Int)
 
@@ -27,31 +26,9 @@ object Main {
 
   private def parseLine(line: String): DeerData =
     line match {
-      case LineRegex(name, speed, flyingTime, restingTime) =>
-        DeerData(name, speed.toInt, flyingTime.toInt, restingTime.toInt)
+      case LineRegex(name, kms, flyingTime, restingTime) =>
+        DeerData(name, kms.toInt, flyingTime.toInt, restingTime.toInt)
       case _ => throw new Exception(s"Failed to parse line, '$line'.")
-    }
-
-  private def part1(deerData: Seq[DeerData], numSeconds: Int): Int = {
-    val initialStates = deerData.map(dd => flying(dd, dd.flyingTime, 0, 0))
-    Iterable
-      .iterate(initialStates, numSeconds + 1)(advanceStates)
-      .last
-      .maxBy(_.td)
-      .td
-  }
-
-  private def advanceStates(states: Seq[State]): Seq[State] =
-    states.map(advanceState)
-
-  private def advanceState(state: State): State =
-    state match {
-      case Flying(dd, r, td, pts) =>
-        if (r == 1) resting(dd, dd.restingTime, td + dd.speed, pts)
-        else flying(dd, r - 1, td + dd.speed, pts)
-      case Resting(dd, r, td, pts) =>
-        if (r == 1) flying(dd, dd.flyingTime, td, pts)
-        else resting(dd, r - 1, td, pts)
     }
 
   sealed abstract class State(dd: DeerData, r: Int, val td: Int, val pts: Int)
@@ -71,22 +48,34 @@ object Main {
   private def resting(dd: DeerData, r: Int, td: Int, pts: Int): State =
     Resting(dd, r, td, pts)
 
-  private def part2(deerData: Seq[DeerData], numSeconds: Int): Int = {
-    val initialStates = deerData.map(dd => flying(dd, dd.flyingTime, 0, 0))
-    Iterable
-      .iterate(initialStates, numSeconds + 1)(advanceStates2)
+  private def reindeerRace(dds: Seq[DeerData],
+                           raceLength: Int,
+                           pluck: State => Int): Int = {
+    val initialStates = dds.map(dd => flying(dd, dd.flyingTime, 0, 0))
+    val winner = Iterable
+      .iterate(initialStates, raceLength + 1)(advanceStates)
       .last
-      .maxBy(_.pts)
-      .pts
+      .maxBy(pluck)
+    pluck(winner)
   }
 
-  private def advanceStates2(states: Seq[State]): Seq[State] = {
+  private def advanceStates(states: Seq[State]): Seq[State] = {
     val states2 = states.map(advanceState)
     val tdMax = states2.maxBy(_.td).td
-    states2.map(incrementLeaders(tdMax))
+    states2.map(addPointToLeaders(tdMax))
   }
 
-  private def incrementLeaders(tdMax: Int)(state: State): State = {
+  private def advanceState(state: State): State =
+    state match {
+      case Flying(dd, r, td, pts) =>
+        if (r == 1) resting(dd, dd.restingTime, td + dd.kms, pts)
+        else flying(dd, r - 1, td + dd.kms, pts)
+      case Resting(dd, r, td, pts) =>
+        if (r == 1) flying(dd, dd.flyingTime, td, pts)
+        else resting(dd, r - 1, td, pts)
+    }
+
+  private def addPointToLeaders(tdMax: Int)(state: State): State = {
     def addPointIfLeader(td: Int, pts: Int): Int =
       if (td == tdMax) pts + 1 else pts
     state match {
