@@ -35,24 +35,23 @@ object Main {
       case _ => throw new Exception(s"Failed to parse line, '$line'.")
     }
 
-  private def part1(ingredient: Seq[Ingredient]): Int = {
+  private def part1(ingredients: Seq[Ingredient]): Int = {
     val scores = for {
       amount1 <- 0 to 100
       amount2 <- 0 to 100
       if amount1 + amount2 == 100
-    } yield calculateScore(ingredient.head, ingredient.last, amount1, amount2)
+    } yield
+      calculateScore(
+        List(amount1 -> ingredients.head, amount2 -> ingredients.last))
     scores.max
   }
 
-  private def calculateScore(ingredient1: Ingredient,
-                             ingredient2: Ingredient,
-                             amount1: Int,
-                             amount2: Int): Int = {
+  private def calculateScore(pairs: List[(Int, Ingredient)]): Int = {
     def calculatePropertyScore(property: Ingredient => Int): Int = {
-      val propertyScore =
-        amount1 * property(ingredient1) +
-        amount2 * property(ingredient2)
-      Math.max(propertyScore, 0)
+      val propertyScores = pairs.map {
+        case (amount, ingredient) => amount * property(ingredient)
+      }
+      Math.max(propertyScores.sum, 0)
     }
     val c = calculatePropertyScore(_.capacity)
     val d = calculatePropertyScore(_.durability)
