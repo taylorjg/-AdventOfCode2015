@@ -37,11 +37,10 @@ object Main {
     val isOn = grid(row)(col)
     val numOnNeighbours = countOnNeighbours(grid, row, col)
     numOnNeighbours match {
-      case 2 if isOn  => true
-      case 3 if isOn  => true
-      case _ if isOn  => false
-      case 3 if !isOn => true
-      case _          => false
+      case 2 | 3 if isOn => true
+      case _ if isOn     => false
+      case 3 if !isOn    => true
+      case _             => false
     }
   }
 
