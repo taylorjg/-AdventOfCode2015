@@ -6,8 +6,10 @@ object Main {
   def main(args: Array[String]): Unit = {
     val lines = Source.fromResource("input.txt").getLines().toList
     val aunts = parseLines(lines)
-    val part1Answer = findBestMatch(aunts)
+    val part1Answer = findBestMatch(aunts, part2 = false)
     println(s"part 1 answer: $part1Answer")
+    val part2Answer = findBestMatch(aunts, part2 = true)
+    println(s"part 2 answer: $part2Answer")
   }
 
   private final val Analysis = List(
@@ -40,7 +42,7 @@ object Main {
       case _ => throw new Exception(s"Failed to parse line, '$line'.")
     }
 
-  private def findBestMatch(aunts: List[Main.Aunt]): Int = {
+  private def findBestMatch(aunts: List[Main.Aunt], part2: Boolean): Int = {
     @tailrec
     def loop(remainingAunts: List[Aunt]): Int = {
       if (remainingAunts.length == 1) remainingAunts.head.number
@@ -48,8 +50,15 @@ object Main {
         def filterAunts(acc: List[Aunt], item: Item): List[Aunt] =
           acc.filter { aunt =>
             aunt.items.find(_._1 == item._1) match {
-              case Some(auntItem) => auntItem._2 == item._2
-              case None           => true
+              case Some(auntItem) =>
+                item._1 match {
+                  case "cats" | "trees" if part2 =>
+                    auntItem._2 > item._2
+                  case "pomeranians" | "goldfish" if part2 =>
+                    auntItem._2 < item._2
+                  case _ => auntItem._2 == item._2
+                }
+              case None => true
             }
           }
         val remainingAunts2 = Analysis.foldLeft(remainingAunts)(filterAunts)
