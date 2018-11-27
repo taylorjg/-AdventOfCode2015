@@ -27,26 +27,32 @@ object Main {
     (molecule, replacements)
   }
 
-  private def part1(molecule: Molecule, replacements: Replacements): Int = {
+  private def part1(molecule: Molecule, replacements: Replacements): Int =
+    generateMolecules(molecule, replacements).length
 
-    def replace(pos: Int, s1: String, s2: String): String =
+  private def generateMolecules(molecule: Molecule,
+                                replacements: Replacements): Molecules = {
+
+    def doReplacement(pos: Int, s1: String, s2: String): String =
       molecule.take(pos) ++ s2 ++ molecule.drop(pos + s1.length)
 
-    def op(acc: Molecules, replacement: Replacement): Molecules = {
+    def doAllReplacementsFor(outerAcc: Molecules, replacement: Replacement): Molecules = {
       val (s1, s2) = replacement
       @tailrec
-      def loop(acc: Molecules, fromIndex: Int = 0): Molecules = {
+      def loop(innerAcc: Molecules, fromIndex: Int = 0): Molecules = {
         val pos = molecule.indexOf(s1, fromIndex)
-        if (pos >= 0) {
-          val acc2 = replace(pos, s1, s2) :: acc
-          loop(acc2, pos + 1)
-        } else acc
+        if (pos < 0) innerAcc
+        else {
+          val molecule2 = doReplacement(pos, s1, s2)
+          val innerAcc2 = molecule2 :: innerAcc
+          loop(innerAcc2, pos + 1)
+        }
       }
-      loop(acc)
+      loop(outerAcc)
     }
 
-    val initialState: Molecules = List()
-    val finalState = replacements.foldLeft(initialState)(op)
-    finalState.distinct.length
+    val initialState: Molecules = Nil
+    val finalState = replacements.foldLeft(initialState)(doAllReplacementsFor)
+    finalState.distinct
   }
 }
