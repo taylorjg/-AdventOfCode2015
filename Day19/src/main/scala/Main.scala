@@ -5,10 +5,13 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     val lines = Source.fromResource("input.txt").getLines().toList
-    // val lines = Source.fromResource("test.txt").getLines().toList
+    // val lines = Source.fromResource("test1.txt").getLines().toList
+    // val lines = Source.fromResource("test2.txt").getLines().toList
     val (molecule, replacements) = parseLines(lines)
     val part1Answer = part1(molecule, replacements)
     println(s"part 1 answer: $part1Answer")
+    val part2Answer = part2(molecule, replacements)
+    println(s"part 2 answer: $part2Answer")
   }
 
   type Molecule = String
@@ -28,15 +31,34 @@ object Main {
   }
 
   private def part1(molecule: Molecule, replacements: Replacements): Int =
-    generateMolecules(molecule, replacements).length
+    generateMolecules(replacements)(molecule).length
 
-  private def generateMolecules(molecule: Molecule,
-                                replacements: Replacements): Molecules = {
+  private def part2(targetMolecule: Molecule,
+                    replacements: Replacements): Int = {
+    @tailrec
+    def loop(molecules: Molecules, steps: Int = 1): Int = {
+      // println(s"molecules: $molecules; steps: $steps")
+      if (molecules.contains(targetMolecule)) steps
+      else {
+        val molecules2 =
+          molecules.flatMap(generateMolecules(replacements)).distinct
+        val molecules3 = molecules2.filterNot(_.length > targetMolecule.length)
+        // molecules2.foreach(println)
+        loop(molecules3, steps + 1)
+      }
+    }
+    val startingPoints = replacements.filter(_._1 == "e").map(_._2)
+    loop(startingPoints)
+  }
+
+  private def generateMolecules(replacements: Replacements)(
+      molecule: Molecule): Molecules = {
 
     def doReplacement(pos: Int, s1: String, s2: String): String =
       molecule.take(pos) ++ s2 ++ molecule.drop(pos + s1.length)
 
-    def doAllReplacementsFor(outerAcc: Molecules, replacement: Replacement): Molecules = {
+    def doAllReplacementsFor(outerAcc: Molecules,
+                             replacement: Replacement): Molecules = {
       val (s1, s2) = replacement
       @tailrec
       def loop(innerAcc: Molecules, fromIndex: Int = 0): Molecules = {
