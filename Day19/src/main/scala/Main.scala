@@ -33,6 +33,7 @@ object Main {
   private def part1(molecule: Molecule, replacements: Replacements): Int =
     generateMolecules(replacements)(molecule).length
 
+  // TODO: try depth-first instead of breadth-first and/or use Streams ?
   private def part2(targetMolecule: Molecule,
                     replacements: Replacements): Int = {
     @tailrec

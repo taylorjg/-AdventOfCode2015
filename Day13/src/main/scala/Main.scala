@@ -58,6 +58,11 @@ object Main {
       (p.person1, p.person2) :: (p.person2, p.person1) :: acc
     }
 
+  // TODO: http://vixra.org/pdf/1210.0049v1.pdf
+  // "In an adjacency matrix which encodes for a directed Hamiltonian path, a non-zero determinant
+  // value certifies the existence of a directed Hamiltonian path when no zero rows (columns) and
+  // no similar rows (columns) exist in the adjacency matrix."
+  // https://www-cs-faculty.stanford.edu/~knuth/fasc8a.ps.gz
   private def checkAdjacencyMatrix(pairings: Seq[Pairing]): Boolean = {
     val people = pairings.flatMap(p => List(p.person1, p.person2)).distinct
     val matrix = buildAdjacencyMatrix(pairings)
