@@ -8,6 +8,8 @@ object Main {
     val instructions = parseLines(lines)
     val part1Answer = part1(instructions)
     println(s"part 1 answer: $part1Answer")
+    val part2Answer = part2(instructions)
+    println(s"part 2 answer: $part2Answer")
   }
 
   private final val HlfRegex = raw"""hlf (a|b)""".r
@@ -42,13 +44,14 @@ object Main {
       case _                   => throw new Exception(s"Failed to parse line, '$line'.")
     }
 
-  private def part1(instructions: Vector[Instruction]): Int = {
-    instructions.foreach(println)
-    runInstructions(instructions)("b")
-  }
+  private def part1(instructions: Vector[Instruction]): Int =
+    runInstructions(instructions, Map())("b")
 
-  private def runInstructions(instructions: Vector[Instruction]): Registers = {
-    val initialRegisters: Registers = Map()
+  private def part2(instructions: Vector[Instruction]): Int =
+    runInstructions(instructions, Map("a" -> 1))("b")
+
+  private def runInstructions(instructions: Vector[Instruction],
+                              initialRegisters: Registers): Registers = {
     val initialState = State(initialRegisters, 0)
     @tailrec
     def loop(state: State): State =
@@ -63,7 +66,7 @@ object Main {
   private def processInstruction(state: State,
                                  instruction: Instruction): State = {
     val rs = state.registers
-    val state2 = instruction match {
+    instruction match {
       case Hlf(r) =>
         val v = rs.getOrElse(r, 0)
         state.copy(rs.updated(r, v >> 1), ip = state.ip + 1)
@@ -84,8 +87,6 @@ object Main {
         val offset2 = if (isOne(v)) offset else 1
         state.copy(ip = state.ip + offset2)
     }
-    println(s"[processInstruction] $instruction; $state2")
-    state2
   }
 
   private def isEven(n: Int): Boolean =
