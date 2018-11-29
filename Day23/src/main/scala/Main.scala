@@ -1,3 +1,4 @@
+import scala.annotation.tailrec
 import scala.io.Source
 
 object Main {
@@ -24,6 +25,9 @@ object Main {
   final case class Jie(r: String, offset: Int) extends Instruction
   final case class Jio(r: String, offset: Int) extends Instruction
 
+  type Registers = Map[String, Int]
+  final case class State(registers: Registers, ip: Int)
+
   private def parseLines(lines: Vector[String]): Vector[Instruction] =
     lines.map(parseLine)
 
@@ -40,6 +44,53 @@ object Main {
 
   private def part1(instructions: Vector[Instruction]): Int = {
     instructions.foreach(println)
-    0
+    runInstructions(instructions)("b")
   }
+
+  private def runInstructions(instructions: Vector[Instruction]): Registers = {
+    val initialRegisters: Registers = Map()
+    val initialState = State(initialRegisters, 0)
+    @tailrec
+    def loop(state: State): State =
+      if (instructions.isDefinedAt(state.ip))
+        loop(processInstruction(state, instructions(state.ip)))
+      else
+        state
+    val finalState = loop(initialState)
+    finalState.registers
+  }
+
+  private def processInstruction(state: State,
+                                 instruction: Instruction): State = {
+    val rs = state.registers
+    val state2 = instruction match {
+      case Hlf(r) =>
+        val v = rs.getOrElse(r, 0)
+        state.copy(rs.updated(r, v >> 1), ip = state.ip + 1)
+      case Tpl(r) =>
+        val v = rs.getOrElse(r, 0)
+        state.copy(rs.updated(r, v * 3), ip = state.ip + 1)
+      case Inc(r) =>
+        val v = rs.getOrElse(r, 0)
+        state.copy(rs.updated(r, v + 1), ip = state.ip + 1)
+      case Jmp(offset) =>
+        state.copy(ip = state.ip + offset)
+      case Jie(r, offset) =>
+        val v = rs.getOrElse(r, 0)
+        val offset2 = if (isEven(v)) offset else 1
+        state.copy(ip = state.ip + offset2)
+      case Jio(r, offset) =>
+        val v = rs.getOrElse(r, 0)
+        val offset2 = if (isOne(v)) offset else 1
+        state.copy(ip = state.ip + offset2)
+    }
+    println(s"[processInstruction] $instruction; $state2")
+    state2
+  }
+
+  private def isEven(n: Int): Boolean =
+    n % 2 == 0
+
+  private def isOne(n: Int): Boolean =
+    n == 1
 }
